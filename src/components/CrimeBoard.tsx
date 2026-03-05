@@ -19,7 +19,6 @@ export default function CrimeBoardGenerator() {
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash-image' | 'gemini-3.1-flash-image-preview'>('gemini-2.5-flash-image');
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isUpscaling, setIsUpscaling] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,11 +71,19 @@ export default function CrimeBoardGenerator() {
     setResultImage(null);
 
     try {
-      let currentApiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      // Vercel & Vite environment variable check
+      let currentApiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
+
+      // Fallback to older process.env just in case it's evaluated in a Node context occasionally
+      if (!currentApiKey && typeof process !== 'undefined' && process.env) {
+        currentApiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+      }
+
       if (window.aistudio) {
         const hasKey = await window.aistudio.hasSelectedApiKey();
         if (hasKey) {
-          currentApiKey = process.env.API_KEY || currentApiKey;
+          // In AI studio environment, it might inject it or we fall back to what we found
+          currentApiKey = currentApiKey;
         }
       }
 
@@ -158,70 +165,6 @@ export default function CrimeBoardGenerator() {
       setError(errorMessage);
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const upscaleBoard = async () => {
-    if (!resultImage) return;
-    setIsUpscaling(true);
-    setError(null);
-
-    try {
-      let currentApiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-      if (window.aistudio) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (hasKey) {
-          currentApiKey = process.env.API_KEY || currentApiKey;
-        }
-      }
-
-      if (!currentApiKey) throw new Error("API key is missing. Please connect your API key.");
-
-      const ai = new GoogleGenAI({ apiKey: currentApiKey });
-
-      const upscaleBase64 = resultImage.split(',')[1];
-      const upscaleMime = resultImage.split(';')[0].split(':')[1];
-
-      const upscaleParts = [
-        { inlineData: { data: upscaleBase64, mimeType: upscaleMime } },
-        { text: "Take this exact image and upscale its resolution by 2x, remastering it into ultra sharp, highly detailed, photorealistic 8k quality with maximum texture fidelity. Strictly preserve the exact layout, photos, and text." }
-      ];
-
-      const upscaleOpts: any = {
-        model: 'gemini-3.1-flash-image-preview',
-        contents: { parts: upscaleParts }
-      };
-
-      const upscalePromise = ai.models.generateContent(upscaleOpts);
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Upscale request timed out. Please try again.')), 120000)
-      );
-
-      const upscaledResponse = await Promise.race([upscalePromise, timeoutPromise]) as any;
-
-      let finalImage = '';
-      for (const part of upscaledResponse.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          finalImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-          break;
-        }
-      }
-
-      if (!finalImage) throw new Error('No image was returned during the upscaling step.');
-
-      setResultImage(finalImage);
-
-    } catch (err: any) {
-      console.error(err);
-      let errorMessage = 'Failed to upscale board. Please try again.';
-      if (err.message && (err.message.includes('429') || err.message.toLowerCase().includes('quota'))) {
-        errorMessage = 'API Quota Exceeded. The shared model has reached its limit.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    } finally {
-      setIsUpscaling(false);
     }
   };
 
@@ -314,7 +257,7 @@ export default function CrimeBoardGenerator() {
           <div className="mt-4 pt-6 border-t border-stone-200">
             <button
               onClick={generateBoard}
-              disabled={isGenerating || isUpscaling || images.length === 0}
+              disabled={isGenerating || images.length === 0}
               className="w-full bg-stone-800 text-[#fdfbf7] px-6 py-4 font-typewriter text-lg hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex items-center justify-center gap-3"
             >
               {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
@@ -346,23 +289,8 @@ export default function CrimeBoardGenerator() {
               </div>
             ) : resultImage ? (
               <div className="w-full h-full relative group">
-                <img src={resultImage} alt="Completed Crime Board" className={`w-full h-full object-contain bg-black transition-opacity ${isUpscaling ? 'opacity-30' : ''}`} />
-                {isUpscaling && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-white">
-                    <Loader2 className="w-12 h-12 animate-spin mb-4 text-amber-400" />
-                    <p className="font-typewriter font-bold text-lg animate-pulse">Upscaling Resolution...</p>
-                    <p className="font-sans text-xs opacity-70">Enhancing details and textures. This may take up to a minute.</p>
-                  </div>
-                )}
+                <img src={resultImage} alt="Completed Crime Board" className="w-full h-full object-contain bg-black" />
                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2 z-30">
-                  <button
-                    onClick={upscaleBoard}
-                    disabled={isUpscaling}
-                    className="bg-amber-100/95 backdrop-blur-sm text-amber-900 px-4 py-2 font-typewriter hover:bg-amber-200 hover:text-amber-950 transition-all shadow-xl flex items-center justify-center gap-2 rounded-sm font-bold border border-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isUpscaling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isUpscaling ? 'Upscaling...' : 'Upscale (2x) with Nano Banana 2'}
-                  </button>
                   <a
                     href={resultImage}
                     download="investigation-board-4k.png"
