@@ -8,8 +8,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || ''),
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY || ''),
+      // Vercel의 빌드 서버 Node.js 환경변수(process.env)를 최우선으로 가져와서 주입
+      '__GEMINI_API_KEY__': JSON.stringify(process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || ''),
+      '__API_KEY__': JSON.stringify(process.env.API_KEY || env.API_KEY || env.VITE_API_KEY || ''),
     },
     resolve: {
       alias: {

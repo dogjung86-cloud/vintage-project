@@ -76,12 +76,10 @@ export default function CrimeBoardGenerator() {
 
       // 2. Try the replaced global values from vite.config.ts (if running in browser after build)
       if (!currentApiKey) {
-        try {
-          // @ts-ignore
-          currentApiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.VITE_GEMINI_API_KEY;
-        } catch (e) {
-          // process is not defined, ignore
-        }
+        // @ts-ignore
+        if (typeof __GEMINI_API_KEY__ !== 'undefined' && __GEMINI_API_KEY__) currentApiKey = __GEMINI_API_KEY__;
+        // @ts-ignore
+        else if (typeof __API_KEY__ !== 'undefined' && __API_KEY__) currentApiKey = __API_KEY__;
       }
 
       if (window.aistudio) {
