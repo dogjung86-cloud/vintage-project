@@ -71,12 +71,17 @@ export default function CrimeBoardGenerator() {
     setResultImage(null);
 
     try {
-      // Vercel & Vite environment variable check
+      // 1. Try Vite's native environment variables
       let currentApiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
 
-      // Fallback to older process.env just in case it's evaluated in a Node context occasionally
-      if (!currentApiKey && typeof process !== 'undefined' && process.env) {
-        currentApiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+      // 2. Try the replaced global values from vite.config.ts (if running in browser after build)
+      if (!currentApiKey) {
+        try {
+          // @ts-ignore
+          currentApiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.VITE_GEMINI_API_KEY;
+        } catch (e) {
+          // process is not defined, ignore
+        }
       }
 
       if (window.aistudio) {
