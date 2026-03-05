@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { Loader2, Download, AlertCircle, Play, Image as ImageIcon, X, MapPin, Zap, Sparkles, Plus } from 'lucide-react';
+import { Loader2, Download, AlertCircle, Play, Image as ImageIcon, X, MapPin, Zap, Sparkles, Plus, Key } from 'lucide-react';
 
 interface NoteItem {
   id: string;
@@ -17,6 +17,19 @@ interface EvidenceImage {
 export default function CrimeBoardGenerator() {
   const [images, setImages] = useState<EvidenceImage[]>([]);
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash-image' | 'gemini-3.1-flash-image-preview'>('gemini-2.5-flash-image');
+  const [customApiKey, setCustomApiKey] = useState('');
+
+  // 컴포넌트 마운트 시 로컬 스토리지에서 API 키 불러오기
+  useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_custom_api_key');
+    if (savedKey) setCustomApiKey(savedKey);
+  }, []);
+
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCustomApiKey(val);
+    localStorage.setItem('gemini_custom_api_key', val);
+  };
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
@@ -71,10 +84,15 @@ export default function CrimeBoardGenerator() {
     setResultImage(null);
 
     try {
-      // 1. Try Vite's native environment variables
-      let currentApiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
+      // 1. 최우선: 사용자가 직접 입력한 로컬 키
+      let currentApiKey = customApiKey.trim();
 
-      // 2. Try the replaced global values from vite.config.ts (if running in browser after build)
+      // 2. Try Vite's native environment variables
+      if (!currentApiKey) {
+        currentApiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
+      }
+
+      // 3. Try the replaced global values from vite.config.ts (if running in browser after build)
       if (!currentApiKey) {
         // @ts-ignore
         if (typeof __GEMINI_API_KEY__ !== 'undefined' && __GEMINI_API_KEY__) currentApiKey = __GEMINI_API_KEY__;
@@ -180,6 +198,25 @@ export default function CrimeBoardGenerator() {
 
         {/* Left Panel: Inputs */}
         <div className="md:col-span-4 flex flex-col gap-8 pr-6 border-r border-stone-200">
+
+          {/* API Key Input (BYOK) */}
+          <div className="flex flex-col gap-3">
+            <label className="font-typewriter text-sm font-bold text-stone-800 flex items-center gap-2">
+              <Key className="w-4 h-4" /> Your Gemini API Key
+            </label>
+            <div className="flex flex-col gap-2">
+              <input
+                type="password"
+                value={customApiKey}
+                onChange={handleApiKeyChange}
+                placeholder="Paste your API key here (AI Studio)"
+                className="w-full bg-[#fdfbf7] border border-stone-300 p-2 text-xs font-mono text-stone-800 focus:outline-none focus:border-stone-500 shadow-inner rounded-sm"
+              />
+              <p className="text-[10px] text-stone-500 font-sans px-1 leading-tight">
+                Keys are stored locally in your browser and never sent anywhere else. Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline hover:text-stone-800">Google AI Studio</a>.
+              </p>
+            </div>
+          </div>
 
           {/* Model Selector */}
           <div className="flex flex-col gap-3">

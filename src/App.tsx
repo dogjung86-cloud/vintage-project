@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Image as ImageIcon, Loader2, Download, RefreshCw, Paperclip, AlertCircle, Newspaper, PenTool, Book, Camera, MapPin, X, Key, Trash2, Plus, Play, FileText, Layout, Clipboard, Hammer, Scissors, Zap, Sparkles, Layers, ListTodo } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import CrimeBoardGenerator from './components/CrimeBoard';
@@ -153,6 +153,19 @@ export default function App() {
   const [items, setItems] = useState<EvidenceItem[]>([]);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash-image' | 'gemini-3.1-flash-image-preview'>('gemini-2.5-flash-image');
+  const [customApiKey, setCustomApiKey] = useState('');
+
+  // 컴포넌트 마운트 시 로컬 스토리지에서 API 키 불러오기
+  useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_custom_api_key');
+    if (savedKey) setCustomApiKey(savedKey);
+  }, []);
+
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCustomApiKey(val);
+    localStorage.setItem('gemini_custom_api_key', val);
+  };
   const [activeTab, setActiveTab] = useState<'generator' | 'board'>('generator');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -230,11 +243,27 @@ export default function App() {
     updateItem(item.id, { status: 'generating', error: null });
 
     try {
-      let currentApiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      // 1. 최우선: 사용자가 직접 입력한 로컬 키
+      let currentApiKey = customApiKey.trim();
+
+      // 2. Try Vite's native environment variables
+      if (!currentApiKey) {
+        currentApiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
+      }
+
+      // 3. Try the replaced global values from vite.config.ts (if running in browser after build)
+      if (!currentApiKey) {
+        // @ts-ignore
+        if (typeof __GEMINI_API_KEY__ !== 'undefined' && __GEMINI_API_KEY__) currentApiKey = __GEMINI_API_KEY__;
+        // @ts-ignore
+        else if (typeof __API_KEY__ !== 'undefined' && __API_KEY__) currentApiKey = __API_KEY__;
+      }
+
       if (window.aistudio) {
         const hasKey = await window.aistudio.hasSelectedApiKey();
         if (hasKey) {
-          currentApiKey = process.env.API_KEY || currentApiKey;
+          // In AI studio environment, it might inject it or we fall back to what we found
+          currentApiKey = currentApiKey;
         }
       }
 
@@ -414,6 +443,27 @@ export default function App() {
             {/* Decorative tape */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-amber-100/40 rotate-2 border border-amber-200/30 shadow-sm backdrop-blur-sm"></div>
             <div className="absolute -bottom-3 right-10 w-24 h-8 bg-amber-100/40 -rotate-3 border border-amber-200/30 shadow-sm backdrop-blur-sm"></div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-stone-200 pb-6 mb-8">
+              <div>
+                <h2 className="font-typewriter text-xl font-bold text-stone-800 mb-2">Item Extractor</h2>
+                <p className="font-sans text-stone-600 text-sm">Upload scene photos and extract specific items into styled vintage evidence elements.</p>
+              </div>
+
+              {/* API Key Input */}
+              <div className="flex flex-col gap-1 w-full sm:w-64 shrink-0">
+                <label className="font-typewriter text-xs font-bold text-stone-700 flex items-center gap-1.5">
+                  <Key className="w-3 h-3" /> API Key
+                </label>
+                <input
+                  type="password"
+                  value={customApiKey}
+                  onChange={handleApiKeyChange}
+                  placeholder="Paste AI Studio Key"
+                  className="w-full bg-white border border-stone-300 p-1.5 text-xs font-mono text-stone-800 focus:outline-none focus:border-stone-500 shadow-sm rounded-sm"
+                />
+              </div>
+            </div>
 
             {items.length === 0 ? (
               <div
