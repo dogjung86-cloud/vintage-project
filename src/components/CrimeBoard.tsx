@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { Loader2, Download, AlertCircle, Play, Image as ImageIcon, X, MapPin, Zap, Sparkles, Plus, Key } from 'lucide-react';
+import { Loader2, Download, AlertCircle, Play, Image as ImageIcon, X, MapPin, Zap, Sparkles, Plus, Key, Layout, Camera, BookText, BoxSelect } from 'lucide-react';
 
 interface NoteItem {
   id: string;
@@ -17,6 +17,8 @@ interface EvidenceImage {
 export default function CrimeBoardGenerator() {
   const [images, setImages] = useState<EvidenceImage[]>([]);
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash-image' | 'gemini-3.1-flash-image-preview'>('gemini-2.5-flash-image');
+  const [boardType, setBoardType] = useState<'crime_board' | 'polaroid_desk' | 'scientist_desk'>('crime_board');
+  const [isAngledView, setIsAngledView] = useState(false);
   const [customApiKey, setCustomApiKey] = useState('');
 
   // 컴포넌트 마운트 시 로컬 스토리지에서 API 키 불러오기
@@ -121,18 +123,23 @@ export default function CrimeBoardGenerator() {
       // 사진별 개별 메모 지시문 생성
       const notesInstructionLines = images.map((img, idx) => {
         const text = img.noteText?.trim();
-        if (text && text.length > 0) {
-          return `- Next to Photo #${idx + 1}, attach a yellow sticky note specifically with this text: "${text}". Make the text look like natural, legible dark ink handwriting.`;
+        if (text && text.length > 0 && boardType !== 'polaroid_desk') {
+          if (boardType === 'crime_board') {
+            return `- Next to Photo #${idx + 1}, attach a yellow sticky note specifically with this text: "${text}". Make the text look like natural, legible dark ink handwriting.`;
+          } else if (boardType === 'scientist_desk') {
+            return `- Underneath or beside Photo #${idx + 1}, place a small paper label or note specifically reading: "${text}". Make it look like a legible handwritten tag or typed note fitting a scientist's documentation.`;
+          }
         }
         return null;
       }).filter(Boolean);
 
       const noteInstruction = notesInstructionLines.length > 0
-        ? `Additionally, include yellow sticky notes on the board matched with the photos as follows:\n${notesInstructionLines.join('\n')}`
+        ? `Additionally, include notes/labels matched with the photos as follows:\n${notesInstructionLines.join('\n')}`
         : '';
 
-      parts.push({
-        text: `You are an expert artist specializing in hyper-realistic vintage scenes. 
+      let boardPrompt = '';
+      if (boardType === 'crime_board') {
+        boardPrompt = `You are an expert artist specializing in hyper-realistic vintage scenes. 
         Your task is to create a SINGLE, close-up, highly detailed photograph of a detective's corkboard.
         
         CRITICAL INSTRUCTIONS:
@@ -143,9 +150,37 @@ export default function CrimeBoardGenerator() {
         5. ${noteInstruction}
         6. Extra Details: Add scattered, smaller, anonymous yellow/white sticky notes with question marks ("?"), generic typed documents (like witness statements), and fingerprint cards in the background spaces to fill out the scene naturally. 
         7. Connections: Connect the photos and sticky notes visibly across the empty spaces using taut RED STRING and red push-pins. The red strings form a conspiracy web.
-        8. Quality: Photorealistic, 8k resolution style, extremely sharp focus on the photos and text. The generated outcome must be exactly ONE integrated layout scene.
-        `
-      });
+        8. Quality: Photorealistic, 8k resolution style, extremely sharp focus on the photos and text. The generated outcome must be exactly ONE integrated layout scene.`;
+      } else if (boardType === 'polaroid_desk') {
+        boardPrompt = `You are an expert artist specializing in hyper-realistic vintage photography.
+        Your task is to create a SINGLE, highly detailed photograph looking down at a wooden desk surface.
+        
+        CRITICAL INSTRUCTIONS:
+        1. Aspect Ratio: The AI MUST generate a horizontal, wide 16:9 rectangular scene. Do NOT generate a square.
+        2. Base Scene: A flat, top-down view of an old, warm-toned wooden desk showing signs of age and character, but clean. The wood should have dark, rich textures. In the periphery of the desk (edges or corners), casually place a classic vintage Polaroid instant camera (like an SX-70 or similar retro camera) and perhaps some loose film cartridges or a leather camera strap to set a nostalgic mood.
+        3. Photos & Layout: Analyze the ${images.length} provided images. Render EVERY SINGLE ONE of them as a classic vintage Polaroid instant photograph (with the iconic thick white bottom border). Scatter these Polaroid photos casually across the wooden desk, near the vintage camera. They can slightly overlap or sit at different angles to look like someone just tossed them onto the table.
+        4. Lighting: Natural, soft, beautiful daylight coming from a window off-camera, creating gentle, realistic drop shadows under the Polaroid photos and the camera to show they are resting on the physical desk.
+        5. No Extra Text: Do not write any text on the Polaroid borders.
+        6. Quality: Photorealistic, 8k resolution style, extremely sharp focus.`;
+      } else if (boardType === 'scientist_desk') {
+        boardPrompt = `You are an expert artist specializing in hyper-realistic, academic vintage scenes.
+        Your task is to create a SINGLE, close-up, highly detailed photograph of a 19th-century scientist's or explorer's research desk.
+        
+        CRITICAL INSTRUCTIONS:
+        1. Aspect Ratio: The AI MUST generate a horizontal, wide 16:9 rectangular scene. Do NOT generate a square.
+        2. Base Scene: A sprawling, ancient, heavy oak desk covered in academic clutter. Surrounding the main area, place thick leather-bound antique books, a magnifying glass, maybe a brass microscope, fountain pens, inkwells, and perhaps a small fossil, skeleton fragment, or old world map to establish a strong scientific explorer vibe.
+        3. Photos & Layout: Analyze the ${images.length} provided images. Render them as physical, vintage photographs or sketches resting on the desk. They should be arranged somewhat neatly in the center as the primary focus of the scene.
+        4. ${noteInstruction}
+        5. Connections: You may lightly connect some of the photos with thin red thread pinned to the desk, as if mapping out a theory, or leave them simply arranged.
+        6. Lighting: Warm, dramatic, moody lighting, perhaps from an antique desk lamp out of frame, casting rich shadows across the books and tools.
+        7. Quality: Photorealistic, cinematic, 8k resolution style, extremely sharp focus on the photos and any handwritten text.`;
+      }
+
+      const perspectiveInstruction = isAngledView
+        ? `\n\nCRITICAL ANGLE REQUIREMENT: Do NOT use a flat top-down or straight-on view. Shoot from a dynamic, angled 3D perspective. The camera should be tilted looking across the scene from a realistic diagonal angle to create a strong sense of physical depth, thickness of objects, and 3D space. Use a subtle shallow depth of field (bokeh) to blur the distant background slightly.`
+        : '';
+
+      parts.push({ text: boardPrompt + perspectiveInstruction });
 
       const requestOptions: any = {
         model: selectedModel,
@@ -253,6 +288,77 @@ export default function CrimeBoardGenerator() {
             </div>
           </div>
 
+          {/* Board Type Selector */}
+          <div className="flex flex-col gap-3">
+            <label className="font-typewriter text-sm font-bold text-stone-800 flex items-center gap-2">
+              <Layout className="w-4 h-4" /> Board Theme
+            </label>
+            <div className="flex flex-col gap-2 bg-stone-100 p-2 border border-stone-300 rounded-sm">
+              <button
+                onClick={() => setBoardType('crime_board')}
+                className={`flex items-center gap-2 px-3 py-2 text-xs font-typewriter transition-all rounded-sm text-left ${boardType === 'crime_board'
+                  ? 'bg-stone-800 text-[#fdfbf7] shadow-sm'
+                  : 'text-stone-600 hover:bg-stone-300 hover:text-stone-800'
+                  }`}
+              >
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                <div>
+                  <div className="font-bold">Crime Board</div>
+                  <div className="text-[10px] opacity-80 font-sans mt-0.5">Classic corkboard with red string & pins</div>
+                </div>
+              </button>
+              <button
+                onClick={() => setBoardType('polaroid_desk')}
+                className={`flex items-center gap-2 px-3 py-2 text-xs font-typewriter transition-all rounded-sm text-left ${boardType === 'polaroid_desk'
+                  ? 'bg-stone-800 text-[#fdfbf7] shadow-sm'
+                  : 'text-stone-600 hover:bg-stone-300 hover:text-stone-800'
+                  }`}
+              >
+                <Camera className="w-3 h-3 flex-shrink-0" />
+                <div>
+                  <div className="font-bold">Polaroid Desk</div>
+                  <div className="text-[10px] opacity-80 font-sans mt-0.5">Polaroids scattered on a rustic wooden desk</div>
+                </div>
+              </button>
+              <button
+                onClick={() => setBoardType('scientist_desk')}
+                className={`flex items-center gap-2 px-3 py-2 text-xs font-typewriter transition-all rounded-sm text-left ${boardType === 'scientist_desk'
+                  ? 'bg-stone-800 text-[#fdfbf7] shadow-sm'
+                  : 'text-stone-600 hover:bg-stone-300 hover:text-stone-800'
+                  }`}
+              >
+                <BookText className="w-3 h-3 flex-shrink-0" />
+                <div>
+                  <div className="font-bold">Scientist Desk</div>
+                  <div className="text-[10px] opacity-80 font-sans mt-0.5">Academic desk with books, notes & tools</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Perspective Selector */}
+          <div className="flex flex-col gap-3">
+            <label className="font-typewriter text-sm font-bold text-stone-800 flex items-center gap-2">
+              <BoxSelect className="w-4 h-4" /> Camera Angle
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer bg-stone-100 p-3 border border-stone-300 rounded-sm hover:bg-stone-200 transition-colors">
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={isAngledView}
+                  onChange={(e) => setIsAngledView(e.target.checked)}
+                />
+                <div className={`block w-10 h-6 rounded-full transition-colors ${isAngledView ? 'bg-stone-800' : 'bg-stone-300'}`}></div>
+                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isAngledView ? 'translate-x-4' : ''}`}></div>
+              </div>
+              <div>
+                <div className="font-bold text-xs font-typewriter text-stone-800">Angled 3D Perspective (사선뷰)</div>
+                <div className="text-[10px] text-stone-500 font-sans mt-0.5">Generate with physical depth and camera tilt</div>
+              </div>
+            </label>
+          </div>
+
           {/* Image Upload */}
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center">
@@ -274,13 +380,15 @@ export default function CrimeBoardGenerator() {
                       <X className="w-3 h-3" />
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    value={img.noteText || ''}
-                    onChange={(e) => updateImageNote(img.id, e.target.value)}
-                    placeholder={`Note for Image #${idx + 1}...`}
-                    className="w-full bg-[#fcf4be] border-l-2 border-l-amber-400 border border-stone-200 p-2 text-xs font-typewriter text-stone-800 focus:outline-none focus:border-stone-400 shadow-sm"
-                  />
+                  {boardType !== 'polaroid_desk' && (
+                    <input
+                      type="text"
+                      value={img.noteText || ''}
+                      onChange={(e) => updateImageNote(img.id, e.target.value)}
+                      placeholder={`Note for Image #${idx + 1}...`}
+                      className="w-full bg-[#fcf4be] border-l-2 border-l-amber-400 border border-stone-200 p-2 text-xs font-typewriter text-stone-800 focus:outline-none focus:border-stone-400 shadow-sm"
+                    />
+                  )}
                 </div>
               ))}
               <button

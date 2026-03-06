@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Loader2, Download, RefreshCw, Paperclip, AlertCircle, Newspaper, PenTool, Book, Camera, MapPin, X, Key, Trash2, Plus, Play, FileText, Layout, Clipboard, Hammer, Scissors, Zap, Sparkles, Layers, ListTodo } from 'lucide-react';
+import { Image as ImageIcon, Loader2, Download, RefreshCw, Paperclip, AlertCircle, Newspaper, PenTool, Book, Camera, MapPin, X, Key, Trash2, Plus, Play, FileText, Layout, Clipboard, Hammer, Scissors, Zap, Sparkles, Layers, ListTodo, Stamp } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import CrimeBoardGenerator from './components/CrimeBoard';
 
@@ -178,6 +178,7 @@ export default function App() {
     { id: 'wood_panel', label: 'Wood Panel', icon: Layout },
     { id: 'wrinkled_cutout', label: 'Wrinkled Cutout', icon: Scissors },
     { id: 'paper_craft', label: 'Paper Craft', icon: Layers },
+    { id: 'vintage_engraving', label: 'Vintage Engraving', icon: Stamp },
   ];
 
   const FASTENERS = [
@@ -284,7 +285,7 @@ export default function App() {
               
               CRITICAL INSTRUCTIONS:
               1. BACKGROUND: The background MUST be 100% PURE SOLID MAGENTA (#FF00FF). The magenta MUST touch all absolute edges of the image. DO NOT draw a corkboard, DO NOT draw a desk, DO NOT draw a frame or border around the magenta. The ONLY thing in the image should be the vintage item resting directly on the magenta background.
-              2. PRESERVE IMAGE: ${item.style === 'wrinkled_cutout' ? 'Identify the main subject (person or object) and extract ONLY its silhouette, ignoring the original photo background.' : 'DO NOT remove, crop, or alter the background of the provided image itself. The original image must remain completely intact inside its new frame.'}
+              2. PRESERVE IMAGE: ${['wrinkled_cutout', 'vintage_engraving'].includes(item.style) ? 'Identify the main subject (person or object) and extract ONLY its silhouette, ignoring the original photo background.' : 'DO NOT remove, crop, or alter the background of the provided image itself. The original image must remain completely intact inside its new frame.'}
               3. FASTENER: ${item.fastener === 'tape' ? 'Add a piece of wrinkled masking tape to the top edge of the item.' :
                   item.fastener === 'pin' ? 'Add a single, round and flat brass drawing pin (thumbtack) to the top center. It should look like a flat circular metal disc pressed flush against the surface. Use a dull, weathered, and tarnished brass finish with slight oxidation to look vintage.' :
                     item.fastener === 'nail' ? 'Add a single, rusty old iron nail driven directly THROUGH the top center of the item. Only the flat, rusty nail head should be visible, pressed firmly against the item surface as if it is nailing the item to a wall. DO NOT show the long body or shank of the nail. The nail head should cast a tiny, sharp shadow on the item to show it is firmly attached.' :
@@ -298,7 +299,8 @@ export default function App() {
                         item.style === 'wood_panel' ? 'Embed the exact provided image onto an old, weathered wooden panel or board. The wood should have visible grain, scratches, and a vintage, rustic feel. The image should look like it is painted or printed directly onto the wood.' :
                           item.style === 'wrinkled_cutout' ? 'Identify the main subject (person or object) in the provided image and create a cutout of ONLY that subject, ignoring its original background. Add a thick, irregular white paper border that follows the subject\'s silhouette precisely. The entire cutout must have a subtle, light wrinkled paper texture with soft folds and gentle creases, making it look like a piece of paper that was slightly handled.' :
                             item.style === 'paper_craft' ? 'Transform the exact provided image into a handmade 3D paper craft collage. Recreate the subject and scene entirely using layered pieces of colored construction paper, torn craft paper, and corrugated cardboard. The elements should look physically cut or torn and glued together, with visible thickness, paper textures, and slight drop shadows between the layers to give a 3D tactile effect. The overall aesthetic should be charming, crafty, and highly textured.' :
-                              'Redraw the exact provided image as a rough pencil sketch on a piece of folded, stained grid paper. Worn edges, vintage evidence look.'
+                              item.style === 'vintage_engraving' ? 'Redraw the exact provided image as a colored vintage woodcut or engraving illustration sticker. Use strong, textured dark outlines, detailed cross-hatched shading lines, and flat, muted retro colors. Ensure there is a uniform thick beige or off-white border firmly hugging the outer silhouette of the entire illustration, like a die-cut sticker.' :
+                                'Redraw the exact provided image as a rough pencil sketch on a piece of folded, stained grid paper. Worn edges, vintage evidence look.'
                 }`
             }
           ]
@@ -432,7 +434,7 @@ export default function App() {
                 : 'border-transparent text-stone-500 hover:text-stone-700 hover:bg-stone-50 rounded-t-md'
                 }`}
             >
-              <ListTodo className="w-4 h-4" /> Crime Board
+              <ListTodo className="w-4 h-4" /> Boards
             </button>
           </div>
         </div>
